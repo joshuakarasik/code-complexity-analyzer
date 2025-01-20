@@ -22,21 +22,28 @@ app.post("/analyze", async (req, res) => {
 
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo",
+      stream: true,
+      temperature: 0, // “Focused” answers can be faster
+      max_tokens: 500, // Shorter potential response
       messages: [
-        {
-          role: "system",
-          content: "You are an expert at analyzing code for time and space complexity.",
-        },
-        {
-          role: "user",
-          content: `Analyze this code and provide its time and space complexity:\n\n${code}`,
-        },
+        { role: "system", content: "You are an expert at analyzing code for time and space complexity." },
+        { role: "user", content: `Analyze this code... ${code}` },
       ],
     });
+    // Clean up the GPT output to remove any hidden characters:
+    const rawContent = completion.choices[0].message.content;
+    const cleanedContent = rawContent
+      .replace(/^\u200B+/, "") // Zero-width spaces
+      .replace(/^\uFEFF/, "") // Byte-order mark
+      .trim(); // Standard whitespace
 
-    // Send back the response
-    res.json({ analysis: completion.choices[0].message.content.trim() });
+    console.log("Debugging server output -> cleanedContent:");
+    for (let i = 0; i < cleanedContent.length; i++) {
+      console.log(`Index ${i}:`, cleanedContent[i], cleanedContent.charCodeAt(i));
+    }
+    // Send back the cleaned response
+    res.json({ analysis: cleanedContent });
   } catch (error) {
     console.error("Error with OpenAI API:", error.message);
     res.status(500).json({ error: "Failed to analyze the code." });
